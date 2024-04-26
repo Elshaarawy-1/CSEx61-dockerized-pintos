@@ -13,7 +13,7 @@ cd ~
 ```
 4) Clone the repo:
 ```
-git clone git@github.com:SajedHassan/CSEx61-dockerized-pintos.git
+git clone git@github.com:Elshaarawy-1/CSEx61-dockerized-pintos.git
 ```
 5) From the directory, in which the repo is cloned, run a container from the pulled image and attach the repo as a volume:
 ```
