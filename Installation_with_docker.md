@@ -30,6 +30,7 @@ cd ~/pintos
 7) Update the permissions and exclude it from git:
 ```
 chmod -R 777 .
+chown -R root:root /root/pintos
 git config core.filemode false
 ```
 8) Build the utils:
