@@ -201,6 +201,9 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  /* yields cpu to reschedule and pick the max priority. */
+  thread_yield (); // first, we should check that the max priority in queue > current effective priority
+  
   return tid;
 }
 
@@ -237,7 +240,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  list_insert_ordered(&ready_list, &t->elem, thread_priority_compartor, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -308,7 +311,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    list_insert_ordered(&ready_list, &cur->elem, thread_priority_compartor, NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -336,6 +339,8 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  /* reschedule */
+  thread_yield(); // first, we should check that the max priority in queue > current effective priority
 }
 
 /* Returns the current thread's priority. */
@@ -555,7 +560,6 @@ schedule (void)
   struct thread *cur = running_thread ();
   struct thread *next = next_thread_to_run ();
   struct thread *prev = NULL;
-
   ASSERT (intr_get_level () == INTR_OFF);
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
@@ -578,6 +582,19 @@ allocate_tid (void)
 
   return tid;
 }
+
+/* Comparison function for ordering threads by priority (greatest priority first).
+   Compares the priority of two threads represented by the given list elements.*/
+bool 
+thread_priority_compartor(const struct list_elem *a, 
+                          const struct list_elem *b, 
+                          void *aux UNUSED) 
+{
+    const struct thread *thread_a = list_entry(a, struct thread, elem);
+    const struct thread *thread_b = list_entry(b, struct thread, elem);
+    return thread_a->priority > thread_b->priority;
+}
+
 
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
