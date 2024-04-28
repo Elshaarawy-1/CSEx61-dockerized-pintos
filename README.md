@@ -1,5 +1,4 @@
 # Pintos
-
 ## About
 
 PintOS is an open source instructional operating system kernel developed by Stanford University. PintOS provides complete documentation & modular projects to introduce students to the major concepts of operating systems development. The components of PintOS project is illustrated in the following figure.
@@ -27,7 +26,9 @@ To download the most recent code from [PintOS-OS](https://pintos-os.org/) direct
 
 ## Installation Guidelines
 
-To install PintOS please use the guidelines listed at the [installation document](Installation.md).
+To install PintOS natively, please use the guidelines listed at the [installation document](Installation.md).
+
+To install PintOS with docker, please use the guidelines listed at the [installation with docker document](Installation_with_docker.md).
 
 ## Project Documents
 

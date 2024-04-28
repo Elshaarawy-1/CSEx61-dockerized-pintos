@@ -30,6 +30,8 @@ static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
+struct list sleep_listYK;
+
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
@@ -37,6 +39,7 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  list_init(&sleep_listYK);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -84,6 +87,14 @@ timer_elapsed (int64_t then)
   return timer_ticks () - then;
 }
 
+/* Returns true if A has a wakeup time less than B, false otherwise */
+bool wakeUpPriority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
+  struct thread *t1 = list_entry(a, struct thread, elem);
+  struct thread *t2 = list_entry(b, struct thread, elem);
+  return t1->wakeup_ticks < t2->wakeup_ticks;
+}
+
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
 void
@@ -92,8 +103,15 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+
+  if(ticks <= 0)return;
+
+  struct thread *t = thread_current();
+  t->wakeup_ticks = start + ticks;
+  list_insert_ordered(&sleep_listYK, &t->elem, wakeUpPriority, NULL);
+  intr_disable();
+  thread_block();
+  intr_enable();
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -166,12 +184,29 @@ timer_print_stats (void)
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
 
+
+/* Wake up threads that are ready to wake up */
+void wakeUpThreads()
+{
+  if(list_empty(&sleep_listYK))return;
+  struct list_elem *e = list_begin(&sleep_listYK);
+  struct thread *t = list_entry(e, struct thread, elem);
+  while(t->wakeup_ticks <= timer_ticks()){
+    list_pop_front(&sleep_listYK);
+    thread_unblock(t);
+    if(list_empty(&sleep_listYK))break;
+    e = list_begin(&sleep_listYK);
+    t = list_entry(e, struct thread, elem);
+  }
+}
+
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  wakeUpThreads();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
