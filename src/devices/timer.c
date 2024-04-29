@@ -31,6 +31,7 @@ static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
 struct list sleep_listYK;
+int64_t NextoWakeUp = INT64_MAX;
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -95,23 +96,32 @@ bool wakeUpPriority(const struct list_elem *a, const struct list_elem *b, void *
   return t1->wakeup_ticks < t2->wakeup_ticks;
 }
 
+/* Puts the current thread to sleep by blocking it*/
+void putToSleep(int64_t wakeUpTicks)
+{
+  struct thread *t = thread_current();
+  t->wakeup_ticks = wakeUpTicks;
+  if(wakeUpTicks < NextoWakeUp){
+    NextoWakeUp = wakeUpTicks;
+  }
+  enum intr_level old_level = intr_disable();
+  list_insert_ordered(&sleep_listYK, &t->elem, wakeUpPriority, NULL);
+  thread_block();
+  intr_set_level(old_level);
+}
+
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
 void
 timer_sleep (int64_t ticks) 
 {
-  int64_t start = timer_ticks ();
+  int64_t start = timer_ticks();
 
   ASSERT (intr_get_level () == INTR_ON);
 
-  if(ticks <= 0)return;
-
-  struct thread *t = thread_current();
-  t->wakeup_ticks = start + ticks;
-  list_insert_ordered(&sleep_listYK, &t->elem, wakeUpPriority, NULL);
-  intr_disable();
-  thread_block();
-  intr_enable();
+  if(timer_elapsed(start) < ticks){
+    putToSleep(timer_ticks() + ticks);
+  }
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -188,16 +198,20 @@ timer_print_stats (void)
 /* Wake up threads that are ready to wake up */
 void wakeUpThreads()
 {
-  if(list_empty(&sleep_listYK))return;
+  if(list_empty(&sleep_listYK) || timer_ticks < NextoWakeUp)return;
   struct list_elem *e = list_begin(&sleep_listYK);
   struct thread *t = list_entry(e, struct thread, elem);
   while(t->wakeup_ticks <= timer_ticks()){
     list_pop_front(&sleep_listYK);
     thread_unblock(t);
-    if(list_empty(&sleep_listYK))break;
+    if(list_empty(&sleep_listYK)){
+      NextoWakeUp = INT64_MAX;
+      return;
+    }
     e = list_begin(&sleep_listYK);
     t = list_entry(e, struct thread, elem);
   }
+  NextoWakeUp = t->wakeup_ticks;
 }
 
 /* Timer interrupt handler. */
