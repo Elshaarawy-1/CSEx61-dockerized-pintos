@@ -473,7 +473,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->effective_priority=priority;
+  t->wakeup_ticks = 0;
   list_init(&t->locks);
+  t->waiting_lock = NULL;
+  list_init(&t->donors);
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();

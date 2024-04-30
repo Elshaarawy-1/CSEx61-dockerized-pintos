@@ -113,9 +113,12 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) 
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+  if (!list_empty (&sema->waiters)){
+    struct thread *t = list_entry(list_min(&sema->waiters, thread_priority_compartor, NULL),
+                                   struct thread, elem);
+    list_remove(&t->elem);
+    thread_unblock(t);
+  }
   sema->value++;
   intr_set_level (old_level);
   thread_yield ();
@@ -173,6 +176,7 @@ sema_test_helper (void *sema_)
    acquire and release it.  When these restrictions prove
    onerous, it's a good sign that a semaphore should be used,
    instead of a lock. */
+
 void
 lock_init (struct lock *lock)
 {
@@ -181,6 +185,20 @@ lock_init (struct lock *lock)
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
   lock->effective_priority=0;
+}
+
+void passDonation(struct thread *thread){
+  if(thread->waiting_lock != NULL){
+    struct lock *lock = thread->waiting_lock;
+    struct thread *thread_hold_lock = lock->holder;
+    if(thread_hold_lock != NULL){
+      if(thread_hold_lock->effective_priority < thread->effective_priority){
+        lock->effective_priority = thread->effective_priority;
+        thread_hold_lock->effective_priority = thread->effective_priority;
+        passDonation(thread_hold_lock);
+      }
+    }
+  }
 }
 
 /* Acquires LOCK, sleeping until it becomes available if
@@ -199,33 +217,25 @@ lock_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
 
   struct thread *thread_acquire_lock = thread_current();
-  //printf("thread entered acquire lock:%s\n",thread_acquire_lock->name); //makes error
-
-  if(thread_acquire_lock->effective_priority > lock->effective_priority)
-    lock->effective_priority = thread_acquire_lock->effective_priority; 
-
   struct thread *thread_hold_lock = lock->holder;
-  if(thread_hold_lock !=NULL){
-    thread_hold_lock->effective_priority = lock->effective_priority;
+  if(thread_hold_lock != NULL){
+    thread_acquire_lock->waiting_lock=lock;
+    if(thread_acquire_lock->effective_priority > lock->effective_priority){
+      lock->effective_priority = thread_acquire_lock->effective_priority;
+      thread_hold_lock->effective_priority = lock->effective_priority;
+      passDonation(thread_hold_lock);
+    }
+  }else{
+    lock->effective_priority = thread_acquire_lock->effective_priority;
   }
+
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
-  //static int i=1; //for debug
   thread_hold_lock=lock->holder;
-  if(thread_hold_lock != NULL && thread_hold_lock==thread_acquire_lock ){ 
-      /*enter one time only for each thread hold lock*/
+  if(thread_hold_lock != NULL && thread_hold_lock==thread_acquire_lock ){
+      thread_hold_lock->waiting_lock=NULL; 
       list_insert_ordered(&(thread_hold_lock->locks),&lock->elem,lock_priority_compartor,NULL);
-
-      //printf("\tcnt:%d,NAME:%s\n",i++,thread_hold_lock->name); //for debug
-      // struct list_elem *itr=list_begin(&thread_hold_lock->locks); //for debug
-      // while (itr!=list_end(&thread_hold_lock->locks)) //for debug
-      // {
-      //     struct lock *data = list_entry(itr, struct lock, elem);
-      //     //printf("list item:%d\n",data->effective_priority);
-      //     itr=list_next(itr);
-      // }
   }
-  
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
