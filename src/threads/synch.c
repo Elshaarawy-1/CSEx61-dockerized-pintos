@@ -180,6 +180,7 @@ lock_init (struct lock *lock)
 
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
+  lock->effective_priority=0;
 }
 
 /* Acquires LOCK, sleeping until it becomes available if
@@ -197,8 +198,33 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  struct thread *thread_acquire_lock = thread_current();
+  //printf("thread entered acquire lock:%s\n",thread_acquire_lock->name);
+
+  if(thread_acquire_lock->effective_priority > lock->effective_priority)
+    lock->effective_priority = thread_acquire_lock->effective_priority; 
+
+  struct thread *thread_hold_lock = lock->holder;
+  if(thread_hold_lock !=NULL){
+    thread_hold_lock->effective_priority = lock->effective_priority;
+  }
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
+  static int i=1; //for debug
+  thread_hold_lock=lock->holder;
+  if(thread_hold_lock != NULL && thread_hold_lock==thread_acquire_lock){
+    printf("\tcnt:%d,NAME:%s\n",i++,thread_hold_lock->name); //for debug
+    list_insert_ordered(&(thread_hold_lock->locks),&lock->elem,lock_priority_compartor,NULL);
+    printf("list of locks:\n"); //for debug
+    struct list_elem *itr=list_begin(&thread_hold_lock->locks); //for debug
+    while (itr!=list_end(&thread_hold_lock->locks)) //for debug
+    {
+        struct lock *data = list_entry(itr, struct lock, elem);
+        printf("list item:%d\n",data->effective_priority);
+        itr=list_next(itr);
+    }
+  }
+  
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -231,7 +257,14 @@ lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
-
+  struct thread *thread_hold_lock = lock->holder;
+  if(!list_empty(&thread_hold_lock->locks))
+    list_pop_front(&thread_hold_lock->locks); //remove lock with highest priority from list
+  
+  if(!list_empty(&thread_hold_lock->locks))
+    thread_hold_lock->effective_priority=list_entry(list_front(&(thread_hold_lock->locks)), struct lock, elem)->effective_priority; //set effective to max priority of locks holded by thread
+  else
+    thread_hold_lock->effective_priority=thread_hold_lock ->priority; //set effective base priority of thread
   lock->holder = NULL;
   sema_up (&lock->semaphore);
 }
@@ -246,6 +279,18 @@ lock_held_by_current_thread (const struct lock *lock)
 
   return lock->holder == thread_current ();
 }
+/* Comparison function for ordering locks by effective priority (greatest  effective priority first).
+   Compares the priority of two locks represented by the given list elements.*/
+bool 
+lock_priority_compartor(const struct list_elem *a, 
+                          const struct list_elem *b, 
+                          void *aux UNUSED) 
+{
+    const struct lock *lock_a = list_entry(a, struct lock, elem);
+    const struct lock *lock_b = list_entry(b, struct lock, elem);
+    return lock_a->effective_priority > lock_b->effective_priority;
+}
+
 
 /* One semaphore in a list. */
 struct semaphore_elem 

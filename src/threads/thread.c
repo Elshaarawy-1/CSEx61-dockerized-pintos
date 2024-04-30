@@ -347,7 +347,7 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+  return thread_current ()->effective_priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -467,6 +467,8 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->effective_priority=priority;
+  list_init(&t->locks);
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
@@ -494,9 +496,9 @@ alloc_frame (struct thread *t, size_t size)
    idle_thread. */
 static struct thread *
 next_thread_to_run (void) 
-{
+{  
   if (list_empty (&ready_list))
-    return idle_thread;
+    return  idle_thread;
   else
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
@@ -592,9 +594,8 @@ thread_priority_compartor(const struct list_elem *a,
 {
     const struct thread *thread_a = list_entry(a, struct thread, elem);
     const struct thread *thread_b = list_entry(b, struct thread, elem);
-    return thread_a->priority > thread_b->priority;
+    return thread_a->effective_priority > thread_b->effective_priority;
 }
-
 
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
