@@ -199,7 +199,7 @@ lock_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
 
   struct thread *thread_acquire_lock = thread_current();
-  //printf("thread entered acquire lock:%s\n",thread_acquire_lock->name);
+  //printf("thread entered acquire lock:%s\n",thread_acquire_lock->name); //makes error
 
   if(thread_acquire_lock->effective_priority > lock->effective_priority)
     lock->effective_priority = thread_acquire_lock->effective_priority; 
@@ -210,19 +210,20 @@ lock_acquire (struct lock *lock)
   }
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
-  static int i=1; //for debug
+  //static int i=1; //for debug
   thread_hold_lock=lock->holder;
-  if(thread_hold_lock != NULL && thread_hold_lock==thread_acquire_lock){
-    printf("\tcnt:%d,NAME:%s\n",i++,thread_hold_lock->name); //for debug
-    list_insert_ordered(&(thread_hold_lock->locks),&lock->elem,lock_priority_compartor,NULL);
-    printf("list of locks:\n"); //for debug
-    struct list_elem *itr=list_begin(&thread_hold_lock->locks); //for debug
-    while (itr!=list_end(&thread_hold_lock->locks)) //for debug
-    {
-        struct lock *data = list_entry(itr, struct lock, elem);
-        printf("list item:%d\n",data->effective_priority);
-        itr=list_next(itr);
-    }
+  if(thread_hold_lock != NULL && thread_hold_lock==thread_acquire_lock ){ 
+      /*enter one time only for each thread hold lock*/
+      list_insert_ordered(&(thread_hold_lock->locks),&lock->elem,lock_priority_compartor,NULL);
+
+      //printf("\tcnt:%d,NAME:%s\n",i++,thread_hold_lock->name); //for debug
+      // struct list_elem *itr=list_begin(&thread_hold_lock->locks); //for debug
+      // while (itr!=list_end(&thread_hold_lock->locks)) //for debug
+      // {
+      //     struct lock *data = list_entry(itr, struct lock, elem);
+      //     //printf("list item:%d\n",data->effective_priority);
+      //     itr=list_next(itr);
+      // }
   }
   
 }
@@ -259,10 +260,10 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   struct thread *thread_hold_lock = lock->holder;
   if(!list_empty(&thread_hold_lock->locks))
-    list_pop_front(&thread_hold_lock->locks); //remove lock with highest priority from list
+    list_remove(&lock->elem); //remove lock with released from list locks
   
-  if(!list_empty(&thread_hold_lock->locks))
-    thread_hold_lock->effective_priority=list_entry(list_front(&(thread_hold_lock->locks)), struct lock, elem)->effective_priority; //set effective to max priority of locks holded by thread
+  if(!list_empty(&thread_hold_lock->locks)) //set effective to max priority of locks holded by thread
+    thread_hold_lock->effective_priority=list_entry(list_front(&(thread_hold_lock->locks)), struct lock, elem)->effective_priority; 
   else
     thread_hold_lock->effective_priority=thread_hold_lock ->priority; //set effective base priority of thread
   lock->holder = NULL;
