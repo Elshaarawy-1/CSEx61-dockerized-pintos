@@ -338,7 +338,12 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  if(thread_current ()->priority == thread_current ()->effective_priority){
+    thread_current ()->priority= new_priority;
+    thread_current ()->effective_priority=new_priority;
+  }
+  else  
+    thread_current ()->priority = new_priority;
   /* reschedule */
   thread_yield(); // first, we should check that the max priority in queue > current effective priority
 }
