@@ -359,14 +359,25 @@ thread_get_priority (void)
 void
 thread_set_nice (int nice UNUSED) 
 {
-  /* Not yet implemented. */
+  enum intr_level old_level = intr_disable();
+  struct thread *t = thread_current();
+  t->nice = nice;
+  t->recent_cpu = add_real_int(mult_real(div_real(mult_real_int(load_avg, 2),
+                                  add_real_int(mult_real_int(load_avg, 2), 1)),
+                                  t->recent_cpu),
+                                  t->nice);
+  t->priority = convert_real_to_int(add_real_int(add_real_int(div_real_int(t->recent_cpu, -4), PRI_MAX), (t->nice * -2)), false); // Assumption Round or truncate total
+  intr_set_level(old_level);
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
+  enum intr_level old_level = intr_disable();
+  int nice = thread_current()->nice;
+  intr_set_level(old_level);
+  return nice;
   return 0;
 }
 
@@ -374,16 +385,20 @@ thread_get_nice (void)
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  enum intr_level old_level = intr_disable();
+  int load_avg_int = convert_real_to_int(mult_real_int(load_avg, 100), true);
+  intr_set_level(old_level);
+  return load_avg_int;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  enum intr_level old_level = intr_disable();
+  int load_recent_cpu_int = convert_real_to_int(mult_real_int(thread_current()->recent_cpu, 100), true);
+  intr_set_level(old_level);
+  return load_recent_cpu_int;
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -471,8 +486,16 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
-  t->priority = priority;
-  t->effective_priority=priority;
+
+  if(thread_mlfqs){
+    calculate_priority(t, NULL);
+  }
+  else{
+    t->priority = priority;
+    t->effective_priority = priority;
+  }
+
+
   t->wakeup_ticks = 0;
   list_init(&t->locks);
   t->waiting_lock = NULL;
@@ -602,9 +625,61 @@ thread_priority_compartor(const struct list_elem *a,
 {
     const struct thread *thread_a = list_entry(a, struct thread, elem);
     const struct thread *thread_b = list_entry(b, struct thread, elem);
+    if(thread_mlfqs) return thread_a->priority > thread_b->priority;
     return thread_a->effective_priority > thread_b->effective_priority;
 }
 
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+void calculate_recent_cpu(struct thread *cur, void *aux UNUSED){
+  cur->recent_cpu = add_real_int(mult_real(div_real(mult_real_int(load_avg, 2),
+                                  add_real_int(mult_real_int(load_avg, 2), 1)),
+                                  cur->recent_cpu),
+                                  cur->nice);
+}
+
+void calculate_priority(struct thread *cur, void *aux UNUSED){
+  cur->priority = PRI_MAX - convert_real_to_int(div_real_int(cur->recent_cpu, 4), true) - (cur->nice * 2);
+}
+
+/**
+ * thread_update_priority - Calculate the priority of all threads in the system
+ * Definition: Calculates the priority based on the mlfqs formula
+ * for all threads in the system.
+ * Afterwards, updates the all_list to be sorted by priority.
+ * @void: takes no params
+ * Returns: void
+ */
+void
+thread_update_priority(void)
+{
+  enum intr_level old_level = intr_disable();
+  thread_foreach(&calculate_priority, NULL);
+  intr_set_level(old_level);
+}
+
+void incr_recent_cpu(){
+  if(thread_current != idle_thread){
+    thread_current()->recent_cpu = add_real_int(thread_current()->recent_cpu, 1);
+  }
+}
+
+void thread_update_recent_cpu(){
+  enum intr_level old_level = intr_disable();
+  thread_foreach(&calculate_recent_cpu, NULL);
+  intr_set_level(old_level);
+}
+
+void calculate_load_avg(){
+  int ready_threads = 0;
+  enum intr_level old_level = intr_disable();
+  intr_set_level(old_level);
+  ready_threads = (int)list_size(&ready_list) + (thread_current() != idle_thread);
+  old_level = intr_disable();
+  intr_set_level(old_level);
+  load_avg = add_real(mult_real(div_real_int(convert_int_to_real(59), 60), load_avg),
+                      mult_real_int(div_real_int(convert_int_to_real(1), 60),
+                                    ready_threads));
+}

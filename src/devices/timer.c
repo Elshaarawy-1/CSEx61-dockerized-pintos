@@ -220,6 +220,19 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  if(thread_mlfqs){
+    incr_recent_cpu();
+    if(ticks > 0 && ticks % 4 == 0){
+      thread_update_priority();
+    }
+    if(ticks > 0 && ticks%100 == 0){
+      enum intr_level old_level = intr_disable();
+      calculate_load_avg();
+      intr_set_level(old_level);
+      thread_update_recent_cpu();
+    }
+  }
+
   wakeUpThreads();
 }
 

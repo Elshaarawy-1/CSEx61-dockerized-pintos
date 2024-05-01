@@ -80,6 +80,8 @@ main (void)
 
   /* Clear BSS. */  
   bss_init ();
+  load_avg = convert_int_to_real(0);
+
 
   /* Break command line into arguments and parse options. */
   argv = read_command_line ();
