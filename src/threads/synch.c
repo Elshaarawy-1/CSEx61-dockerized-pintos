@@ -223,6 +223,11 @@ lock_acquire (struct lock *lock)
     if(thread_acquire_lock->effective_priority > lock->effective_priority){
       lock->effective_priority = thread_acquire_lock->effective_priority;
       thread_hold_lock->effective_priority = lock->effective_priority;
+      if (!list_empty(&thread_hold_lock->locks)){
+        struct lock *max_lock = list_entry(list_min(&thread_hold_lock->locks, lock_priority_compartor, NULL), struct lock, elem);
+        if (max_lock->effective_priority > lock->effective_priority)
+          thread_hold_lock->effective_priority = max_lock->effective_priority;
+      }
       passDonation(thread_hold_lock);
     }
   }else{
