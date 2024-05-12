@@ -38,10 +38,23 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  //added for wait
+  struct thread *cur = thread_current();
+  //added for wait
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+    palloc_free_page (fn_copy);
+  
+  //added for wait
+  else {
+    struct thread *child = get_thread(tid);
+    child->parent = cur;
+    list_push_back(&cur->children, &child->elem);
+  } 
+  //added for wait
+  
   return tid;
 }
 
@@ -88,7 +101,10 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  return -1;
+  //added for wait
+  sema_down(&thread_current()->sema);
+  return thread_current()->exit_status;
+  //added for wait
 }
 
 /* Free the current process's resources. */
