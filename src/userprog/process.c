@@ -101,10 +101,8 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  //added for wait
-  sema_down(&thread_current()->sema);
-  return thread_current()->exit_status;
-  //added for wait
+  while(1); // Infinite loop
+  return -1;
 }
 
 /* Free the current process's resources. */
@@ -453,9 +451,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        //dyh kanet *esp = PHYS_BASE;
-        *esp = PHYS_BASE - 12;
-        //e3ml 4o8lk brdo ya Ahmed ya mostafa
+        *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
     }
