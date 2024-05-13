@@ -13,8 +13,7 @@ syscall_init (void)
 }
 
 static void
-syscall_handler (struct intr_frame *f) 
-syscall_handler (struct intr_frame *f) 
+syscall_handler (struct intr_frame *f)
 {
   printf ("system call!\n");
   int Sys_call = *(int *)f->esp;
@@ -67,24 +66,5 @@ void exit(int status){
 }
 
 int wait(tid_t pid){
-  printf("wait(%d)\n", pid);
-  return process_wait(pid);
-}
-void halt(void){
-  printf("halt()\n");
-  shutdown_power_off();
-}
-
-void exit(int status){
-  struct semaphore *sema = thread_current()->parent->sema;
-  thread_current()->exit_status = status;
-  sema_up(sema);
-  
-  printf("exit(%d)\n", status);
-  thread_exit();
-}
-
-int wait(tid_t pid){
-  printf("wait(%d)\n", pid);
   return process_wait(pid);
 }

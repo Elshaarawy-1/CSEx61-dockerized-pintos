@@ -183,6 +183,7 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -200,6 +201,12 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+
+  if(tid != TID_ERROR){
+    struct thread *cur = thread_current();
+    t->parent = cur;
+    list_push_back(&cur->children, &t->child_elem);
+  }
 
   return tid;
 }
@@ -463,14 +470,13 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-  
-  //added for wait
-  sema_init(&t->sema, 0);
-  t->parent = NULL;
+
+  t->exit_status = 0;
   list_init(&t->children);
-  t->exit_status = -1;
-  //added for wait
-  
+  t->waiting_on_child = NULL;
+  t->parent = NULL;
+  sema_init(&t->sema, 0);
+
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -585,22 +591,6 @@ allocate_tid (void)
 
   return tid;
 }
-
-//added for wait
-struct thread get_thread(tid_t tid){
-  struct list_elem *e;
-  struct thread *t;
-  for (e = list_begin (&all_list); e != list_end (&all_list);
-       e = list_next (e))
-    {
-      t = list_entry (e, struct thread, allelem);
-      if(t->tid == tid){
-        return *t;
-      }
-    }
-  return *t;
-}
-
 
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */

@@ -89,17 +89,17 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
+   
+    struct thread *parent;              /* Parent thread. */
+    struct thread *waiting_on_child;    /* Thread waiting on this child. */
+    struct list children;               /* List of child threads. */
+    struct list_elem child_elem;        /* List element for child threads list. */
+    int exit_status;                    /* Exit status of the thread. */
 
+    struct semaphore *sema;             /* Semaphore for waiting on the thread. */
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-    //added for wait
-    struct semaphore *sema;              /* Semaphore for wait*/
-    struct thread *parent;               /* Parent thread. */
-    struct list children;                /* List of children threads. */
-    int exit_status;                    /* Exit status of the thread. */
-   //added for wait
-   
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
