@@ -14,6 +14,7 @@ syscall_init (void)
 
 static void
 syscall_handler (struct intr_frame *f) 
+syscall_handler (struct intr_frame *f) 
 {
   printf ("system call!\n");
   int Sys_call = *(int *)f->esp;
@@ -35,15 +36,6 @@ syscall_handler (struct intr_frame *f)
       f->eax = wait(pid);
       break;
     }
-    case SYS_EXEC:
-    {
-      //dah Ay klam ya Ahmed ya mostafa e3ml 4o8lk
-      const char *cmd_line;
-      cmd_line = *(const char **)(f->esp + 4);
-      f->eax = process_execute(cmd_line);
-      break;
-    }
-      break;
     //do rest of the system calls
     default:
       break;
@@ -51,6 +43,24 @@ syscall_handler (struct intr_frame *f)
   thread_exit ();
 }
 
+void halt(void){
+  printf("halt()\n");
+  shutdown_power_off();
+}
+
+void exit(int status){
+  struct semaphore *sema = thread_current()->parent->sema;
+  thread_current()->exit_status = status;
+  sema_up(sema);
+  
+  printf("exit(%d)\n", status);
+  thread_exit();
+}
+
+int wait(tid_t pid){
+  printf("wait(%d)\n", pid);
+  return process_wait(pid);
+}
 void halt(void){
   printf("halt()\n");
   shutdown_power_off();
