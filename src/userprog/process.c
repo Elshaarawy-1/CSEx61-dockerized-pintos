@@ -230,7 +230,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, char *argv[], int argc);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -243,6 +243,18 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
+
+  char *token, *save_ptr;
+  char *argv[32];
+  int argc = 0;
+  for(token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)){
+    argv[argc] = token;
+    argc++;
+  }
+  argv[argc] = NULL;
+  file_name = argv[0];
+
+
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -337,7 +349,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, argv, argc))
     goto done;
 
   /* Start address. */
@@ -462,7 +474,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp, char *argv[], int argc) 
 {
   uint8_t *kpage;
   bool success = false;
@@ -471,8 +483,35 @@ setup_stack (void **esp)
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
-        *esp = PHYS_BASE - 12;
+      if (success){
+        // *esp = PHYS_BASE - 12;
+        *esp = PHYS_BASE;
+        int *argv_addr[argc];
+        int argv_len = 0;
+        for(int i = argc - 1; i >= 0; i--){
+          *esp -= strlen(argv[i]) + 1;
+          memcpy(*esp, argv[i], strlen(argv[i]) + 1);
+          argv_addr[i] = *esp;
+          argv_len += strlen(argv[i]) + 1;
+        }
+
+        *esp -= 4 - (argv_len % 4);
+        *(uint32_t *)*esp = 0;
+
+        for(int i = argc - 1; i >= 0; i--){
+          *esp -= 4;
+          *(uint32_t *)*esp = (uint32_t)argv_addr[i];
+        }
+
+        *esp -= 4;
+        *(uint32_t *)*esp = (uint32_t)(*esp + 4);
+
+        *esp -= 4;
+        *(uint32_t *)*esp = argc;
+
+        *esp -= 4;
+        *(uint32_t *)*esp = 0;
+      }
       else
         palloc_free_page (kpage);
     }
