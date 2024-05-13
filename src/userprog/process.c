@@ -38,10 +38,19 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  struct thread *parent = thread_current();
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+    palloc_free_page (fn_copy);
+  else {
+    sema_down(&parent->sema);
+    struct thread *child = list_entry(list_back(&parent->children), struct thread, elem);
+    if(child->exit_status == -1){
+        return TID_ERROR;
+    }
+  } 
   return tid;
 }
 
@@ -63,8 +72,14 @@ start_process (void *file_name_)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
-    thread_exit ();
+  if (!success){
+    thread_current()->exit_status = -1;
+    sema_up(&thread_current()->parent->sema);
+    thread_exit();
+  } 
+
+  sema_up(&thread_current()->parent->sema);
+  thread_block();
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -86,10 +101,29 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  while(1); // Infinite loop
-  return -1;
+  struct thread *parent = thread_current();
+  struct list_elem *e;
+  struct thread *child = NULL;
+  for (e = list_begin(&parent->children); e != list_end(&parent->children); e = list_next(e)){
+    struct thread *t = list_entry(e, struct thread, elem);
+    if(t->tid == child_tid){
+      child = t;
+      break;
+    }
+  }
+  if(child == NULL || child->waiting_on_child != NULL){
+    return -1;
+  }
+
+  parent->waiting_on_child = child;
+  list_remove(&child->child_elem);
+  thread_unblock(child);
+  sema_down(&parent->sema);
+
+  int status = child->exit_status;
+  return status;
 }
 
 /* Free the current process's resources. */
