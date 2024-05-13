@@ -57,12 +57,14 @@ void halt(void){
 }
 
 void exit(int status){
-  struct semaphore *sema = thread_current()->parent->sema;
-  thread_current()->exit_status = status;
-  sema_up(sema);
-  
   printf("exit(%d)\n", status);
-  thread_exit();
+  if(thread_current()->parent != NULL){
+    if(thread_current()->parent->waiting_on_child == thread_current()->tid){
+      thread_current()->exit_status = status;
+      sema_up(&thread_current()->parent->semaPC);
+    }
+  }
+  process_exit();
 }
 
 int wait(tid_t pid){

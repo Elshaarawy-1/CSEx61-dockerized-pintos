@@ -44,13 +44,15 @@ process_execute (const char *file_name)
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
+
   else {
-    sema_down(&parent->sema);
+    sema_down(&parent->semaPC);
     struct thread *child = list_entry(list_back(&parent->children), struct thread, elem);
     if(child->exit_status == -1){
         return TID_ERROR;
     }
   } 
+
   return tid;
 }
 
@@ -73,13 +75,19 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success){
+   
     thread_current()->exit_status = -1;
-    sema_up(&thread_current()->parent->sema);
+    sema_up(&thread_current()->parent->semaPC);
     thread_exit();
   } 
 
-  sema_up(&thread_current()->parent->sema);
+  sema_up(&thread_current()->parent->semaPC);
+  
+  enum intr_level old_level;
+  old_level = intr_disable();
   thread_block();
+  intr_set_level(old_level);
+  
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -103,6 +111,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
+ 
   struct thread *parent = thread_current();
   struct list_elem *e;
   struct thread *child = NULL;
@@ -116,14 +125,12 @@ process_wait (tid_t child_tid)
   if(child == NULL || child->waiting_on_child != NULL){
     return -1;
   }
-
-  parent->waiting_on_child = child;
   list_remove(&child->child_elem);
+  parent->waiting_on_child = child_tid;
   thread_unblock(child);
-  sema_down(&parent->sema);
+  sema_down(&parent->semaPC);
 
-  int status = child->exit_status;
-  return status;
+  return child->exit_status;
 }
 
 /* Free the current process's resources. */

@@ -202,6 +202,7 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+
   if(tid != TID_ERROR){
     struct thread *cur = thread_current();
     t->parent = cur;
@@ -475,7 +476,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->children);
   t->waiting_on_child = NULL;
   t->parent = NULL;
-  sema_init(&t->sema, 0);
+  sema_init(&t->semaPC, 0);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
