@@ -36,6 +36,15 @@ syscall_handler (struct intr_frame *f)
       f->eax = wait(pid);
       break;
     }
+    case SYS_EXEC:
+    {
+      //dah Ay klam ya Ahmed ya mostafa e3ml 4o8lk
+      const char *cmd_line;
+      cmd_line = *(const char **)(f->esp + 4);
+      f->eax = process_execute(cmd_line);
+      break;
+    }
+      break;
     //do rest of the system calls
     default:
       break;
