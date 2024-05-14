@@ -8,8 +8,8 @@
 int
 main (void) 
 {
+  printf ("Exec Working\n");
   test_name = "child-simple";
-
   msg ("run");
   return 81;
 }

@@ -31,7 +31,6 @@ tid_t
 process_execute (const char *file_name) 
 {
   char *fn_copy;
-  char *create_name;
   tid_t tid;
 
   /* Make a copy of FILE_NAME.
@@ -41,22 +40,17 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  char *s;
-  create_name = malloc(strlen(file_name) + 1);
-  strlcpy(create_name, file_name, strlen(file_name) + 1);
-  create_name = strtok_r(create_name, " ", &s);
-
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (create_name, PRI_DEFAULT, start_process, fn_copy);
-  free(create_name);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
 
-  struct thread *parent = thread_current();
-  sema_down(&parent->semaPC);
+  sema_down(&thread_current()->semaPC);
   
-  if(!parent->child_success)
+  if(!&thread_current()->child_success){
     return TID_ERROR;
+  }
 
   return tid;
 }
@@ -82,11 +76,11 @@ start_process (void *file_name_)
   if (!success){
     thread_current()->parent->child_success = false;
     sema_up(&thread_current()->parent->semaPC);
-    thread_exit();
+    thread_exit(); //make sure to remove the child from the parent's list
   }else{
     thread_current()->parent->child_success = true;
     sema_up(&thread_current()->parent->semaPC);
-    sema_down(&thread_current()->parent->semaCP);
+    sema_down(&thread_current()->semaCP);
   }
   
 
@@ -113,6 +107,7 @@ int
 process_wait (tid_t child_tid) 
 {
   struct thread *parent = thread_current();
+
   struct list_elem *e;
   struct child_thread *child = NULL;
   for (e = list_begin(&parent->children); e != list_end(&parent->children); e = list_next(e)){
@@ -129,7 +124,7 @@ process_wait (tid_t child_tid)
   //if child is found and already exited return its exit status
   if(!child->exited){
     parent->waiting_on = child_tid;
-    sema_up(&parent->semaCP);
+    sema_up(&child->self->semaCP);
   //set the child that the parent is waiting on
     sema_down(&parent->semaPC);
   }

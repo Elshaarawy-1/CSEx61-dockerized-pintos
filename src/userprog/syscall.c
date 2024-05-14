@@ -142,6 +142,7 @@ void halt(void){
   printf("halt()\n");
   shutdown_power_off();
 }
+
 //calls thread_exit which in turn calls process_exit
 void exit(int status){
   struct thread *cur = thread_current();

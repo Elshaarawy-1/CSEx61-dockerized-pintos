@@ -211,7 +211,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-
+  
   return tid;
 }
 
@@ -483,11 +483,12 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
+  list_init(&t->files);
+  
   t->parent = NULL;
   list_init(&t->children);
-  list_init(&t->files);
   t->waiting_on = -1;
-  t->exit_status = -1;
+  t->exit_status = 0;
   t->child_success = false;
   sema_init(&t->semaPC, 0);
   sema_init(&t->semaCP, 0);
