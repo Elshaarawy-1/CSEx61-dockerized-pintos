@@ -4,9 +4,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "filesys/filesys.h"
-#include "filesys/file.c"
 #include "threads/malloc.h"
-#include "userprog/pagedir.c"
 
 static void syscall_handler (struct intr_frame *);
 
