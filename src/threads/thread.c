@@ -473,6 +473,7 @@ init_thread (struct thread *t, const char *name, int priority)
 
   t->exit_status = 0;
   list_init(&t->children);
+  list_init(&t->files);
   t->waiting_on_child = NULL;
   t->parent = NULL;
   sema_init(&t->sema, 0);

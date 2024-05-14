@@ -99,6 +99,7 @@ struct thread
     struct semaphore *sema;             /* Semaphore for waiting on the thread. */
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+    struct list files;               /* List of all files currently opened by the thread. */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
