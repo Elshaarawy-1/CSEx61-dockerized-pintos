@@ -10,6 +10,19 @@
 
 static void syscall_handler (struct intr_frame *);
 
+static bool create_file(const char* file_name, unsigned initial_size);
+static bool remove_file (const char* file_name);
+static int open_file(const char* file_name);
+static int file_size(int fd);
+static int read(int fd, void* buffer, unsigned size);
+static int write(int fd, void* buffer, unsigned size);
+static void seek (int fd, unsigned position);
+static unsigned tell (int fd);
+static void close (int fd);
+static struct file_descriptor *get_file_by_fd(int fd);
+static bool is_valid_pointer(const void *ptr);
+
+
 /* lock for file operations */
 struct lock file_lock;
 
