@@ -53,14 +53,14 @@ syscall_handler (struct intr_frame *f)
     case SYS_EXIT:
     {
       int status;
-      status = *(int *)(f->esp + 4);
+      status = *((int *)f->esp + 1);
       exit(status);
       break;
     }
     case SYS_WAIT:
     {
       tid_t pid; 
-      pid = *(tid_t *)(f->esp + 4);
+      pid = (tid_t *)*((int *)f->esp + 1);
       f->eax = wait(pid);
       break;
     }
@@ -68,67 +68,67 @@ syscall_handler (struct intr_frame *f)
     {
       //dah Ay klam ya Ahmed ya mostafa e3ml 4o8lk
       const char *cmd_line;
-      cmd_line = *(const char **)(f->esp + 4);
+      cmd_line = *(char *)*((int *)f->esp + 1);
       f->eax = process_execute(cmd_line);
       break;
     }
     case SYS_CREATE:
     {
-      const char *file_name = (char *)(f->esp + 4); // make sure about casting and pointer incerements
-      int initial_size = (unsigned *)(f->esp + 8);
+      const char *file_name = (const char *)*((int *)f->esp + 1);
+      int initial_size = (unsigned)*((int *)f->esp + 2);
       f->eax = create_file (file_name, initial_size);
       break;
     }
     case SYS_REMOVE: 
     {
-      const char *file_name = (char *)(f->esp + 4);
+      const char *file_name = (const char *)*((int *)f->esp + 1);
       f->eax = remove_file (file_name);
       break;
     }
     case SYS_OPEN: 
     {
-      const char *file_name = (char *)(f->esp + 4);
+      const char *file_name = (const char *)*((int *)f->esp + 1);
       f->eax = open_file (file_name);
       break;
     }
     case SYS_FILESIZE: 
     {
-      int *fd = (int *)(f->esp + 4);
+      int *fd = (int)*((int *)f->esp + 1);
       f->eax = file_size (fd);
       break;
     }
     case SYS_READ: 
     {
-      int *fd = (int *)(f->esp + 4);
-      void *buffer = (void *)(f->esp + 4);
-      unsigned size = (unsigned *)(f->esp + 4);
+      int *fd = (int)*((int *)f->esp + 1);
+      void *buffer = (void *)*((int *)f->esp + 2);
+      unsigned size = (unsigned)*((int *)f->esp + 3);
       f->eax = read (fd, buffer, size);
       break;
     }
     case SYS_WRITE: 
     {
-      int *fd = (int *)(f->esp + 4);
-      void *buffer = (void *)(f->esp + 4);
-      unsigned size = (unsigned *)(f->esp + 4);
+      int *fd = (int)*((int *)f->esp + 1);
+      void *buffer = (void *)*((int *)f->esp + 2);
+      unsigned size = (unsigned)*((int *)f->esp + 3);
       f->eax = write (fd, buffer, size);
       break;
     }
     case SYS_SEEK: 
     {
-      int *fd = (int *)(f->esp + 4);
-      unsigned pos = (int *)(f->esp + 8);
+      int *fd = (int)*((int *)f->esp + 1);
+      unsigned pos = (unsigned)*((int *)f->esp + 2);
       seek (fd, pos);
       break;
     }
     case SYS_TELL: 
     {
-      int *fd = (int *)(f->esp + 4);
+      int *fd = (int)*((int *)f->esp + 1);
       f->eax = tell (fd);
       break;
     }
     case SYS_CLOSE: 
     {
-      int *fd = (int *)(f->esp + 4);
+      int *fd = (int *)(f->esp + 1);
       close (fd);
       break;
     }
