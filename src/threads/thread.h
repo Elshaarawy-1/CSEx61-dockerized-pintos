@@ -92,12 +92,14 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
    
     struct thread *parent;              /* Parent thread. */
-    struct thread *waiting_on_child;    /* Thread waiting on this child. */
+    tid_t waiting_on;                     /* Waiting on this child. */
     struct list children;               /* List of child threads. */
-    struct list_elem child_elem;        /* List element for child threads list. */
+
+    bool child_success;                 /* Child success. */
     int exit_status;                    /* Exit status of the thread. */
 
-    struct semaphore semaPC;             /* Semaphore for waiting on the thread. */
+    struct semaphore semaPC;             /* Semaphore for blocking the parent thread. */
+    struct semaphore semaCP;             /* Semaphore for blocking the child thread. */
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
     struct list files;               /* List of all files currently opened by the thread. */
@@ -109,6 +111,15 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+  };
+
+struct child_thread
+  {
+    struct thread *self;
+    tid_t tid;
+    struct list_elem elem;
+    int exit_status;
+    bool exited;
   };
 
 /* If false (default), use round-robin scheduler.

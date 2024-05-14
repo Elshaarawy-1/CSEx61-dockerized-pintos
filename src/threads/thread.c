@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -183,6 +184,15 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+  if(tid != TID_ERROR){
+    struct child_thread *child = malloc(sizeof(struct child_thread));
+    child->self = t;
+    child->tid = tid;
+    child->exit_status = t->exit_status;
+    child->exited = false;
+    list_push_back(&thread_current()->children, &child->elem);
+    t->parent = thread_current();
+  }
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -201,13 +211,6 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-
-
-  if(tid != TID_ERROR){
-    struct thread *cur = thread_current();
-    t->parent = cur;
-    list_push_back(&cur->children, &t->child_elem);
-  }
 
   return tid;
 }
@@ -303,6 +306,14 @@ thread_exit (void)
   schedule ();
   NOT_REACHED ();
 }
+
+  // if(!list_empty(&cur->locks)){
+  //   struct list_elem *e;
+  //   for(e = list_begin(&cur->locks); e != list_end(&cur->locks); e = list_next(e)){
+  //     struct lock *lock = list_entry(e, struct lock, elem);
+  //     lock_release(lock);
+  //   }
+  // }
 
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
@@ -472,12 +483,14 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
-  t->exit_status = 0;
+  t->parent = NULL;
   list_init(&t->children);
   list_init(&t->files);
-  t->waiting_on_child = NULL;
-  t->parent = NULL;
+  t->waiting_on = -1;
+  t->exit_status = -1;
+  t->child_success = false;
   sema_init(&t->semaPC, 0);
+  sema_init(&t->semaCP, 0);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

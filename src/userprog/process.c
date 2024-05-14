@@ -17,6 +17,8 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/synch.h"
+#include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -29,6 +31,7 @@ tid_t
 process_execute (const char *file_name) 
 {
   char *fn_copy;
+  char *create_name;
   tid_t tid;
 
   /* Make a copy of FILE_NAME.
@@ -38,20 +41,22 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  struct thread *parent = thread_current();
+  char *s;
+  create_name = malloc(strlen(file_name) + 1);
+  strlcpy(create_name, file_name, strlen(file_name) + 1);
+  create_name = strtok_r(create_name, " ", &s);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (create_name, PRI_DEFAULT, start_process, fn_copy);
+  free(create_name);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
 
-  else {
-    sema_down(&parent->semaPC);
-    struct thread *child = list_entry(list_back(&parent->children), struct thread, elem);
-    if(child->exit_status == -1){
-        return TID_ERROR;
-    }
-  } 
+  struct thread *parent = thread_current();
+  sema_down(&parent->semaPC);
+  
+  if(!parent->child_success)
+    return TID_ERROR;
 
   return tid;
 }
@@ -75,18 +80,14 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success){
-   
-    thread_current()->exit_status = -1;
+    thread_current()->parent->child_success = false;
     sema_up(&thread_current()->parent->semaPC);
     thread_exit();
-  } 
-
-  sema_up(&thread_current()->parent->semaPC);
-  
-  enum intr_level old_level;
-  old_level = intr_disable();
-  thread_block();
-  intr_set_level(old_level);
+  }else{
+    thread_current()->parent->child_success = true;
+    sema_up(&thread_current()->parent->semaPC);
+    sema_down(&thread_current()->parent->semaCP);
+  }
   
 
   /* Start the user process by simulating a return from an
@@ -111,25 +112,30 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
- 
   struct thread *parent = thread_current();
   struct list_elem *e;
-  struct thread *child = NULL;
+  struct child_thread *child = NULL;
   for (e = list_begin(&parent->children); e != list_end(&parent->children); e = list_next(e)){
-    struct thread *t = list_entry(e, struct thread, elem);
+    struct child_thread *t = list_entry(e, struct child_thread, elem);
     if(t->tid == child_tid){
       child = t;
       break;
     }
   }
-  if(child == NULL || child->waiting_on_child != NULL){
+  //if child is not found return -1
+  if(child == NULL){
     return -1;
   }
-  list_remove(&child->child_elem);
-  parent->waiting_on_child = child_tid;
-  thread_unblock(child);
-  sema_down(&parent->semaPC);
-
+  //if child is found and already exited return its exit status
+  if(!child->exited){
+    parent->waiting_on = child_tid;
+    sema_up(&parent->semaCP);
+  //set the child that the parent is waiting on
+    sema_down(&parent->semaPC);
+  }
+  //remove the child from the parent's list
+  list_remove(&child->elem);
+  //return the exit status of the child
   return child->exit_status;
 }
 
@@ -140,6 +146,26 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  int status = cur->exit_status;
+  if(cur->parent != NULL){
+    if(cur->parent->waiting_on == cur->tid){
+      struct list_elem *e;
+      struct child_thread *child;
+      for(e = list_begin(&cur->parent->children); e != list_end(&cur->parent->children); e = list_next(e)){
+        child = list_entry(e, struct child_thread, elem);
+        if(child->tid == cur->tid){
+          child->exited = true;
+          child->exit_status = status;
+          break;
+        }
+      }
+    // aquire_file_lock();
+    // file_close(cur->his_file);
+    // close_files(&cur->files);
+    // release_file_lock();
+      sema_up(&cur->parent->semaPC);
+    }
+  }
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;

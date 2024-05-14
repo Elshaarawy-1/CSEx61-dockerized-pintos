@@ -34,7 +34,6 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f)
 {
-  printf ("system call!\n");
   int Sys_call = *(int *)f->esp;
   switch(Sys_call){
     case SYS_HALT:
@@ -132,16 +131,12 @@ void halt(void){
   printf("halt()\n");
   shutdown_power_off();
 }
-
+//calls thread_exit which in turn calls process_exit
 void exit(int status){
+  struct thread *cur = thread_current();
+  cur->exit_status = status;
   printf("exit(%d)\n", status);
-  if(thread_current()->parent != NULL){
-    if(thread_current()->parent->waiting_on_child == thread_current()->tid){
-      thread_current()->exit_status = status;
-      sema_up(&thread_current()->parent->semaPC);
-    }
-  }
-  process_exit();
+  thread_exit();
 }
 
 int wait(tid_t pid){
