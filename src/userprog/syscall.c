@@ -49,7 +49,9 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_EXEC:
     {
-      //dah Ay klam ya Ahmed ya mostafa e3ml 4o8lk
+      // printf("Esmail Execution\n");
+      if (!is_valid_pointer((const void *)*((int *)f->esp + 1))) 
+        exit(-1);
       char *cmd_line;
       cmd_line = (char *)*((int *)f->esp + 1);
       f->eax = process_execute(cmd_line);

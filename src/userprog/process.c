@@ -522,31 +522,25 @@ setup_stack (void **esp, char *argv[], int argc)
           argv_len += strlen(argv[i]) + 1;
         }
 
-        // Word align
-        while ((size_t) *esp % 4 != 0) {
-          *esp -= sizeof(char);
-          char x = 0;
-          memcpy(*esp, &x, sizeof(char));
-        }
+        *esp -= ((uintptr_t)*esp) % 4;
 
-        *esp -= sizeof(char*);
-        char* null_ptr = NULL;
-        memcpy(*esp, &null_ptr, sizeof(char*)); // argv[argc] should be NULL
+        *esp -= 4;
+        *(uint32_t *)*esp = 0;
 
         for(int i = argc - 1; i >= 0; i--){
-          *esp -= sizeof(char*);
-          memcpy(*esp, &argv_addr[i], sizeof(char*));
+          *esp -= 4;
+          *(uint32_t *)*esp = (uint32_t)argv_addr[i];
         }
 
-        char **temp = *esp;
-        *esp -= sizeof(char**);
-        memcpy(*esp, &temp, sizeof(char**)); // argv pointer
+        *esp -= 4;
+        *(uint32_t *)*esp = (uint32_t)(*esp + 4);
 
-        *esp -= sizeof(int);
-        memcpy(*esp, &argc, sizeof(int)); // argc
+        *esp -= 4;
+        *(uint32_t *)*esp = argc;
 
-        *esp -= sizeof(void*);
-        memcpy(*esp, &null_ptr, sizeof(void*)); // return address
+        *esp -= 4;
+        *(uint32_t *)*esp = 0;
+        // hex_dump((uintptr_t)*esp, *esp, PHYS_BASE - *esp, true);
       }
       else
         palloc_free_page (kpage);
