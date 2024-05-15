@@ -281,7 +281,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   }
   argv[argc] = NULL;
   file_name = argv[0];
-
+  strlcpy(&thread_current()->name, file_name, sizeof thread_current()->name);
 
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -512,7 +512,6 @@ setup_stack (void **esp, char *argv[], int argc)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success){
-        // *esp = PHYS_BASE - 12;
         *esp = PHYS_BASE;
         int *argv_addr[argc];
         int argv_len = 0;
@@ -523,22 +522,31 @@ setup_stack (void **esp, char *argv[], int argc)
           argv_len += strlen(argv[i]) + 1;
         }
 
-        *esp -= 4 - (argv_len % 4);
-        *(uint32_t *)*esp = 0;
-
-        for(int i = argc - 1; i >= 0; i--){
-          *esp -= 4;
-          *(uint32_t *)*esp = (uint32_t)argv_addr[i];
+        // Word align
+        while ((size_t) *esp % 4 != 0) {
+          *esp -= sizeof(char);
+          char x = 0;
+          memcpy(*esp, &x, sizeof(char));
         }
 
-        *esp -= 4;
-        *(uint32_t *)*esp = (uint32_t)(*esp + 4);
+        *esp -= sizeof(char*);
+        char* null_ptr = NULL;
+        memcpy(*esp, &null_ptr, sizeof(char*)); // argv[argc] should be NULL
 
-        *esp -= 4;
-        *(uint32_t *)*esp = argc;
+        for(int i = argc - 1; i >= 0; i--){
+          *esp -= sizeof(char*);
+          memcpy(*esp, &argv_addr[i], sizeof(char*));
+        }
 
-        *esp -= 4;
-        *(uint32_t *)*esp = 0;
+        char **temp = *esp;
+        *esp -= sizeof(char**);
+        memcpy(*esp, &temp, sizeof(char**)); // argv pointer
+
+        *esp -= sizeof(int);
+        memcpy(*esp, &argc, sizeof(int)); // argc
+
+        *esp -= sizeof(void*);
+        memcpy(*esp, &null_ptr, sizeof(void*)); // return address
       }
       else
         palloc_free_page (kpage);

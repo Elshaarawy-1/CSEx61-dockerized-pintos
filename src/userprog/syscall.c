@@ -60,15 +60,15 @@ syscall_handler (struct intr_frame *f)
     case SYS_WAIT:
     {
       tid_t pid; 
-      pid = (tid_t *)*((int *)f->esp + 1);
+      pid = *((int *)f->esp + 1);
       f->eax = wait(pid);
       break;
     }
     case SYS_EXEC:
     {
       //dah Ay klam ya Ahmed ya mostafa e3ml 4o8lk
-      const char *cmd_line;
-      cmd_line = *(char *)*((int *)f->esp + 1);
+      char *cmd_line;
+      cmd_line = (char *)*((int *)f->esp + 1);
       f->eax = process_execute(cmd_line);
       break;
     }
@@ -93,8 +93,8 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_FILESIZE: 
     {
-      int *fd = (int)*((int *)f->esp + 1);
-      f->eax = file_size (fd);
+      int fd = (int)*((int *)f->esp + 1);
+      f->eax = file_size(fd);
       break;
     }
     case SYS_READ: 
@@ -135,7 +135,7 @@ syscall_handler (struct intr_frame *f)
     default:
       break;
   }
-  thread_exit ();
+  return;
 }
 
 void halt(void){
@@ -147,7 +147,7 @@ void halt(void){
 void exit(int status){
   struct thread *cur = thread_current();
   cur->exit_status = status;
-  printf("exit(%d)\n", status);
+  printf("%s: exit(%d)\n", cur->name, status);
   thread_exit();
 }
 
@@ -210,7 +210,6 @@ open_file(const char* file_name)
 int
 file_size(int fd)
 {
-
   struct file_descriptor *file = get_file_by_fd(fd);
   int size = -1;
   if (file != NULL) 
