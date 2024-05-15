@@ -158,8 +158,7 @@ process_exit (void)
       sema_up(&cur->parent->semaPC);
     }
   }
-  close(-1);
-  if(cur->executable != NULL)file_close(cur->executable);
+  if(cur->executable != NULL) file_close(cur->executable);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;

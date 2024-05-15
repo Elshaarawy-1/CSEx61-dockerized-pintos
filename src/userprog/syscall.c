@@ -132,6 +132,7 @@ void halt(void){
 void exit(int status){
   struct thread *cur = thread_current();
   cur->exit_status = status;
+
   if(lock_held_by_current_thread(&file_lock))
     lock_release(&file_lock);
   printf("%s: exit(%d)\n", cur->name, status);
@@ -313,11 +314,10 @@ close (int fd)
       file = list_entry (e, struct file_descriptor, elem);
       if (file -> fd == fd) 
         {
-            printf("Closing file %d\n", fd);
+            //printf("Closing file %d\n", fd);
             list_remove(e); /* update thread's open files list */
             lock_acquire(&file_lock);
             file_close(file -> file);
-            free(file);
             lock_release(&file_lock);
             break;
         }
