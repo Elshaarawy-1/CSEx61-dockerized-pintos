@@ -13,6 +13,14 @@
 #include "filesys/file.h"
 #include "threads/malloc.h"
 
+/* Contains info about the current file. */
+struct file_descriptor
+{
+  struct file *file;      /* The File. */
+  int fd;                 /* File descriptor number. */
+  struct list_elem elem; /* List Element. */
+};
+
 void syscall_init (void);
 void halt(void);
 void exit(int status);

@@ -10,14 +10,6 @@ struct lock file_lock;
 /* current file descriptor number in range (2 -> 128) */
 int current_fd = 2;
 
-/* Contains info about the current file. */
-struct file_descriptor
-{
-  struct file *file;      /* The File. */
-  int fd;                 /* File descriptor number. */
-  struct list_elem elem; /* List Element. */
-};
-
 void
 syscall_init (void) 
 {
@@ -321,6 +313,7 @@ close (int fd)
             lock_acquire(&file_lock);
             file_close(file -> file);
             lock_release(&file_lock);
+            free (file);
             break;
         }
     }
