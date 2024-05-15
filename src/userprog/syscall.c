@@ -209,6 +209,9 @@ file_size(int fd)
 int
 read(int fd, void* buffer, unsigned size)
 {
+  if (!is_valid_pointer(buffer))
+      exit (-1);
+
   int bytes_read = 0;
   lock_acquire(&file_lock);
   if (fd == 0)   // stdin
@@ -217,7 +220,7 @@ read(int fd, void* buffer, unsigned size)
       uint8_t *buf = (uint8_t *)buffer;   /* just casting  */ 
       while (counter--)
         {
-           uint8_t c = input_getc ();  /* read a key from keyboard */
+           uint8_t c = input_getc ();  /* read a key from buffer */
            if (c == '\0') break;
            *buf = c;    /* store the read char into the buffer */
            buf++;      /* move the buffer pointer to read the next char */
