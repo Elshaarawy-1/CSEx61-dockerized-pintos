@@ -484,7 +484,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   list_init(&t->files);
-  
+
   t->parent = NULL;
   list_init(&t->children);
   t->waiting_on = -1;

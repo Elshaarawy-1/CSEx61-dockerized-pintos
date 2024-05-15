@@ -132,6 +132,7 @@ void halt(void){
 void exit(int status){
   struct thread *cur = thread_current();
   cur->exit_status = status;
+  if(cur->executable != NULL) file_close(cur->executable);
   printf("%s: exit(%d)\n", cur->name, status);
   thread_exit();
 }
@@ -177,7 +178,6 @@ open_file(const char* file_name)
 
   lock_acquire(&file_lock);
   struct file *file = filesys_open(file_name);
-
   if (file != NULL)
     {
       file_descriptor = calloc (1, sizeof(struct file_descriptor));
