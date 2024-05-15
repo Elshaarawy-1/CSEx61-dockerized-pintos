@@ -33,6 +33,8 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 
+  struct thread *parent = thread_current();
+
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -46,9 +48,9 @@ process_execute (const char *file_name)
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
 
-  sema_down(&thread_current()->semaPC);
+  sema_down(&parent->semaPC);
   
-  if(!&thread_current()->child_success){
+  if(!parent->child_success){
     return TID_ERROR;
   }
 
