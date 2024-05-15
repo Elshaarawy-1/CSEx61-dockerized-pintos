@@ -19,6 +19,10 @@
 #include "threads/vaddr.h"
 #include "threads/synch.h"
 #include "threads/malloc.h"
+#include "userprog/syscall.h"
+
+/* lock for file operations */
+struct lock file_lock;
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -159,6 +163,20 @@ process_exit (void)
     }
   }
   if(cur->executable != NULL) file_close(cur->executable);
+
+
+  /* close all files */
+  struct file_descriptor *file;
+ 
+  while (!list_empty(&cur -> files))
+  {
+    struct list_elem *e = list_pop_front(&cur -> files);
+    file = list_entry (e, struct file_descriptor, elem);
+    lock_acquire(&file_lock);
+    file_close(file -> file);
+    lock_release(&file_lock);
+  }
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
