@@ -99,7 +99,7 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_READ: 
     {
-      int *fd = (int)*((int *)f->esp + 1);
+      int fd = (int)*((int *)f->esp + 1);
       void *buffer = (void *)*((int *)f->esp + 2);
       unsigned size = (unsigned)*((int *)f->esp + 3);
       f->eax = read (fd, buffer, size);
@@ -107,7 +107,7 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_WRITE: 
     {
-      int *fd = (int)*((int *)f->esp + 1);
+      int fd = (int)*((int *)f->esp + 1);
       void *buffer = (void *)*((int *)f->esp + 2);
       unsigned size = (unsigned)*((int *)f->esp + 3);
       f->eax = write (fd, buffer, size);
@@ -115,20 +115,20 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_SEEK: 
     {
-      int *fd = (int)*((int *)f->esp + 1);
+      int fd = (int)*((int *)f->esp + 1);
       unsigned pos = (unsigned)*((int *)f->esp + 2);
       seek (fd, pos);
       break;
     }
     case SYS_TELL: 
     {
-      int *fd = (int)*((int *)f->esp + 1);
+      int fd = (int)*((int *)f->esp + 1);
       f->eax = tell (fd);
       break;
     }
     case SYS_CLOSE: 
     {
-      int *fd = (int *)(f->esp + 1);
+      int fd = (int *)(f->esp + 1);
       close (fd);
       break;
     }
