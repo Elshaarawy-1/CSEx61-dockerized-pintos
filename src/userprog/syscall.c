@@ -78,13 +78,13 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_FILESIZE: 
     {
-      int fd = (int)*((int *)f->esp + 1);
+      int fd = *((uint32_t *)f->esp + 1);
       f->eax = file_size(fd);
       break;
     }
     case SYS_READ: 
     {
-      int fd = (int)*((int *)f->esp + 1);
+      int fd = *((uint32_t *)f->esp + 1);
       void *buffer = (void *)*((int *)f->esp + 2);
       unsigned size = (unsigned)*((int *)f->esp + 3);
       f->eax = read (fd, buffer, size);
@@ -92,7 +92,7 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_WRITE: 
     {
-      int fd = (int)*((int *)f->esp + 1);
+      int fd = *((uint32_t *)f->esp + 1);
       void *buffer = (void *)*((int *)f->esp + 2);
       unsigned size = (unsigned)*((int *)f->esp + 3);
       f->eax = write (fd, buffer, size);
@@ -100,20 +100,20 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_SEEK: 
     {
-      int fd = (int)*((int *)f->esp + 1);
+      int fd = *((uint32_t *)f->esp + 1);
       unsigned pos = (unsigned)*((int *)f->esp + 2);
       seek (fd, pos);
       break;
     }
     case SYS_TELL: 
     {
-      int fd = (int)*((int *)f->esp + 1);
+      int fd = *((uint32_t *)f->esp + 1);
       f->eax = tell (fd);
       break;
     }
     case SYS_CLOSE: 
     {
-      int fd = (int)*((int *)f->esp + 1);
+      int fd = *((uint32_t *)f->esp + 1);
       close (fd);
       break;
     }
@@ -132,7 +132,8 @@ void halt(void){
 void exit(int status){
   struct thread *cur = thread_current();
   cur->exit_status = status;
-  if(cur->executable != NULL) file_close(cur->executable);
+  if(lock_held_by_current_thread(&file_lock))
+    lock_release(&file_lock);
   printf("%s: exit(%d)\n", cur->name, status);
   thread_exit();
 }
@@ -312,9 +313,11 @@ close (int fd)
       file = list_entry (e, struct file_descriptor, elem);
       if (file -> fd == fd) 
         {
+            printf("Closing file %d\n", fd);
             list_remove(e); /* update thread's open files list */
             lock_acquire(&file_lock);
             file_close(file -> file);
+            free(file);
             lock_release(&file_lock);
             break;
         }

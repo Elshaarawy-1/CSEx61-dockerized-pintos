@@ -46,7 +46,7 @@ process_execute (const char *file_name)
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy);
+    palloc_free_page(fn_copy);
 
   sema_down(&parent->semaPC);
   
@@ -78,7 +78,7 @@ start_process (void *file_name_)
   if (!success){
     thread_current()->parent->child_success = false;
     sema_up(&thread_current()->parent->semaPC);
-    thread_exit(); //make sure to remove the child from the parent's list
+    thread_exit();
   }else{
     thread_current()->parent->child_success = true;
     sema_up(&thread_current()->parent->semaPC);
@@ -130,8 +130,6 @@ process_wait (tid_t child_tid)
   //set the child that the parent is waiting on
     sema_down(&parent->semaPC);
   }
-  //remove the child from the parent's list
-  list_remove(&child->elem);
   //return the exit status of the child
   return child->exit_status;
 }
@@ -156,13 +154,12 @@ process_exit (void)
           break;
         }
       }
-    // aquire_file_lock();
-    // file_close(cur->his_file);
-    // close_files(&cur->files);
-    // release_file_lock();
+      list_remove(&child->elem);
       sema_up(&cur->parent->semaPC);
     }
   }
+  close(-1);
+  if(cur->executable != NULL)file_close(cur->executable);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
