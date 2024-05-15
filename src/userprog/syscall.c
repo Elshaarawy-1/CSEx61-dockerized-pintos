@@ -35,7 +35,7 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_EXIT:
     {
-      if (!is_valid_pointer((const void *)*((int *)f->esp + 1))) 
+      if (!is_user_vaddr((const void *)*((int *)f->esp + 1)))
         exit(-1);
       int status;
       status = *((int *)f->esp + 1);
