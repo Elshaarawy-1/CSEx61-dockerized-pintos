@@ -174,6 +174,7 @@ process_exit (void)
     file = list_entry (e, struct file_descriptor, elem);
     lock_acquire(&file_lock);
     file_close(file -> file);
+    free (file);
     lock_release(&file_lock);
   }
 
